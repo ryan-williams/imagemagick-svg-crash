@@ -1,6 +1,6 @@
 # ImageMagick SVG `gradientTransform` crash
 
-ImageMagick crashes with **SIGABRT** (exit code 134) when converting any SVG containing a `gradientTransform` attribute on a `<linearGradient>` element.
+ImageMagick 7 crashes with a **double-free** (SIGABRT, exit code 134) when converting any SVG containing a `gradientTransform` attribute on a `<linearGradient>` element. ImageMagick 6 is not affected.
 
 ## Minimal reproducer
 
@@ -35,11 +35,11 @@ ImageMagick crashes with **SIGABRT** (exit code 134) when converting any SVG con
 ## Reproducing
 
 ```bash
-# Crashes (exit code 134 / SIGABRT)
-convert crash.svg crash.png
+# Crashes (exit code 134 / SIGABRT, double-free)
+magick crash.svg crash.png
 
 # Works fine
-convert ok.svg ok.png
+magick ok.svg ok.png
 
 # Also works fine (librsvg handles gradientTransform correctly)
 rsvg-convert crash.svg -o crash-rsvg.png
@@ -47,14 +47,23 @@ rsvg-convert crash.svg -o crash-rsvg.png
 
 ## CI
 
-The [GitHub Actions workflow](.github/workflows/repro.yml) demonstrates the crash on Ubuntu with the distro's ImageMagick package.
+The [GitHub Actions workflow](.github/workflows/repro.yml) demonstrates the crash with IM7 (built from source) and confirms IM6 is not affected.
+
+**Error output from IM7:**
+```
+free(): double free detected in tcache 2
+Aborted (core dumped)
+```
 
 ## Versions tested
 
-- ImageMagick 7.1.2-15 (macOS arm64, Homebrew) — **crashes**
-- ImageMagick 6.x (Ubuntu, apt) — **TBD via CI**
-- librsvg (`rsvg-convert`) — **works fine**
+| Version | Source | Result |
+|---|---|---|
+| ImageMagick 7.1.2-16 (Beta) | GHA source build | **crashes** (double-free) |
+| ImageMagick 7.1.2-15 | macOS arm64, Homebrew | **crashes** |
+| ImageMagick 6.9.12-98 | Ubuntu apt | works fine |
+| librsvg 2.58.0 (`rsvg-convert`) | Ubuntu apt | works fine |
 
 ## Upstream issue
 
-<!-- TODO: link to ImageMagick/ImageMagick issue once filed -->
+https://github.com/ImageMagick/ImageMagick/issues/8582
