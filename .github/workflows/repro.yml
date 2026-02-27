@@ -17,10 +17,12 @@ jobs:
       - name: rsvg-convert version
         run: rsvg-convert --version
 
-      - name: "convert ok.svg → ok.png (should succeed)"
-        run: convert ok.svg ok.png && echo "OK: ok.svg converted successfully"
+      - name: convert ok.svg (should succeed)
+        run: |
+          convert ok.svg ok.png
+          echo "OK: ok.svg converted successfully"
 
-      - name: "convert crash.svg → crash.png (expect SIGABRT)"
+      - name: convert crash.svg (expect SIGABRT)
         run: |
           echo "Attempting to convert crash.svg (contains gradientTransform)..."
           if convert crash.svg crash.png; then
@@ -34,12 +36,12 @@ jobs:
             # Don't fail the workflow — we're documenting the bug
           fi
 
-      - name: "rsvg-convert crash.svg → crash-rsvg.png (should succeed)"
+      - name: rsvg-convert crash.svg (should succeed)
         run: |
           rsvg-convert crash.svg -o crash-rsvg.png
           echo "OK: rsvg-convert handled crash.svg without issues"
 
-      - name: "rsvg-convert ok.svg → ok-rsvg.png (should succeed)"
+      - name: rsvg-convert ok.svg (should succeed)
         run: |
           rsvg-convert ok.svg -o ok-rsvg.png
           echo "OK: rsvg-convert handled ok.svg without issues"
