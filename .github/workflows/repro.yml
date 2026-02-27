@@ -1,0 +1,52 @@
+name: Repro SVG crash
+on: [push, workflow_dispatch]
+jobs:
+  repro:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ImageMagick and librsvg
+        run: sudo apt-get update && sudo apt-get install -y imagemagick librsvg2-bin
+
+      - name: ImageMagick version
+        run: |
+          convert --version
+          dpkg -l imagemagick | tail -1
+
+      - name: rsvg-convert version
+        run: rsvg-convert --version
+
+      - name: "convert ok.svg → ok.png (should succeed)"
+        run: convert ok.svg ok.png && echo "OK: ok.svg converted successfully"
+
+      - name: "convert crash.svg → crash.png (expect SIGABRT)"
+        run: |
+          echo "Attempting to convert crash.svg (contains gradientTransform)..."
+          if convert crash.svg crash.png; then
+            echo "UNEXPECTED: convert succeeded (bug may be fixed in this version)"
+          else
+            rc=$?
+            echo "EXPECTED FAILURE: convert exited with code $rc"
+            if [ $rc -eq 134 ]; then
+              echo "Exit code 134 = SIGABRT (abort signal)"
+            fi
+            # Don't fail the workflow — we're documenting the bug
+          fi
+
+      - name: "rsvg-convert crash.svg → crash-rsvg.png (should succeed)"
+        run: |
+          rsvg-convert crash.svg -o crash-rsvg.png
+          echo "OK: rsvg-convert handled crash.svg without issues"
+
+      - name: "rsvg-convert ok.svg → ok-rsvg.png (should succeed)"
+        run: |
+          rsvg-convert ok.svg -o ok-rsvg.png
+          echo "OK: rsvg-convert handled ok.svg without issues"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: converted-pngs
+          path: "*.png"
