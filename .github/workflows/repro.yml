@@ -1,54 +1,90 @@
 name: Repro SVG crash
 on: [push, workflow_dispatch]
 jobs:
-  repro:
+  im6:
+    name: ImageMagick 6 (apt)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install ImageMagick and librsvg
+      - name: Install ImageMagick 6 and librsvg
         run: sudo apt-get update && sudo apt-get install -y imagemagick librsvg2-bin
 
       - name: ImageMagick version
-        run: |
-          convert --version
-          dpkg -l imagemagick | tail -1
+        run: convert --version
 
       - name: rsvg-convert version
         run: rsvg-convert --version
 
       - name: convert ok.svg (should succeed)
-        run: |
-          convert ok.svg ok.png
-          echo "OK: ok.svg converted successfully"
+        run: convert ok.svg ok.png
 
-      - name: convert crash.svg (expect SIGABRT)
+      - name: convert crash.svg
         run: |
-          echo "Attempting to convert crash.svg (contains gradientTransform)..."
           if convert crash.svg crash.png; then
-            echo "UNEXPECTED: convert succeeded (bug may be fixed in this version)"
+            echo "convert succeeded (IM6 may not be affected)"
           else
-            rc=$?
-            echo "EXPECTED FAILURE: convert exited with code $rc"
-            if [ $rc -eq 134 ]; then
-              echo "Exit code 134 = SIGABRT (abort signal)"
-            fi
-            # Don't fail the workflow — we're documenting the bug
+            echo "convert failed with exit code $?"
           fi
 
       - name: rsvg-convert crash.svg (should succeed)
-        run: |
-          rsvg-convert crash.svg -o crash-rsvg.png
-          echo "OK: rsvg-convert handled crash.svg without issues"
-
-      - name: rsvg-convert ok.svg (should succeed)
-        run: |
-          rsvg-convert ok.svg -o ok-rsvg.png
-          echo "OK: rsvg-convert handled ok.svg without issues"
+        run: rsvg-convert crash.svg -o crash-rsvg.png
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: converted-pngs
+          name: pngs-im6
+          path: "*.png"
+
+  im7:
+    name: ImageMagick 7 (source)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libxml2-dev librsvg2-bin
+
+      - name: Build ImageMagick 7 from source
+        run: |
+          git clone --depth 1 https://github.com/ImageMagick/ImageMagick.git /tmp/im7
+          cd /tmp/im7
+          ./configure --with-xml
+          make -j$(nproc)
+          sudo make install
+          sudo ldconfig
+
+      - name: ImageMagick version
+        run: magick --version
+
+      - name: rsvg-convert version
+        run: rsvg-convert --version
+
+      - name: magick ok.svg (should succeed)
+        run: magick ok.svg ok.png
+
+      - name: magick crash.svg (expect SIGABRT)
+        run: |
+          echo "Attempting to convert crash.svg (contains gradientTransform)..."
+          if magick crash.svg crash.png; then
+            echo "UNEXPECTED: magick succeeded (bug may be fixed)"
+          else
+            rc=$?
+            echo "EXPECTED FAILURE: magick exited with code $rc"
+            if [ $rc -eq 134 ]; then
+              echo "Exit code 134 = SIGABRT (abort signal)"
+            fi
+          fi
+
+      - name: rsvg-convert crash.svg (should succeed)
+        run: rsvg-convert crash.svg -o crash-rsvg.png
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pngs-im7
           path: "*.png"
